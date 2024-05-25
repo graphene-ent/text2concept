@@ -1,0 +1,14 @@
+Datasets/
+Outputs/
+
+venv/
+
+__pycache__
+*/__pycache__
+
+*.log
+*.pyc
+*.pyo
+
+*.ipynb_checkpoints
+*.ipynb

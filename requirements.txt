@@ -1,0 +1,14 @@
+pandas <2
+openpyxl
+numpy
+
+torch #vllm auto-locks a specific version
+sentence-transformers
+
+tenacity==8.2.3
+
+tensorizer
+vllm==0.4.2
+spacy<3.9
+
+pyvis

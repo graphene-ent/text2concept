@@ -18,7 +18,7 @@ def visualize_as_graph(concepts:List[Dict[str,str]],
         - None
     """
 
-    df = pd.DataFrame(concepts)
+    df = pd.DataFrame(concepts).dropna()
     G = nx.from_pandas_edgelist(df, 'node_1', 'node_2', edge_attr='relation')
 
     net = Network(notebook=True)

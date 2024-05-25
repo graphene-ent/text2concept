@@ -116,7 +116,7 @@ class ConceptValidator:
             - concepts : List[Dict[str, str]] : all input concepts with two new keys 'valid' and 'explanation' added to each dictionary. 'valid' is a boolean indicating if the concept is valid or not, 'explanation' is a string containing the explanation for the validation
         """
 
-        statements = [f"`{concept['node_1']}` and `{concept['node_2']}` share the relationship `{concept['relation']}` in the context of ```{concept['originating_text']}```"
+        statements = [f"`{concept.get('node_1', None)}` and `{concept.get('node_2')}` share the relationship `{concept.get('relation', None)}` in the context of ```{concept.get('originating_text', None)}```"
                         for concept in self.concepts]
         
         validator = StatementValidator(statements = statements)

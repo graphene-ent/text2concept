@@ -10,3 +10,5 @@ tenacity==8.2.3
 tensorizer
 vllm==0.4.2
 spacy<3.9
+
+pyvis

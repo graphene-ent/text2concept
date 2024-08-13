@@ -11,4 +11,6 @@ tensorizer
 vllm==0.4.2
 spacy<3.9
 
+litellm==1.34.25
+
 pyvis

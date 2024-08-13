@@ -5,22 +5,27 @@ from typing import List, Dict
 from text_chunker.text_chunker import DataChunk
 
 from utils.custom_llm import CustomLLMBuilder
+from utils.llm_pipeline import AsyncLLMPipelineBuilder
 from utils.validators import StatementValidator
 
 class ConceptExtractor:
 
     def __init__(self,
-                 chunks: List[DataChunk]) -> None:
+                 chunks: List[DataChunk],
+                 comprehensive:bool=False) -> None:
         """
         Given a list of 'chunks' of text, extracts concepts from the text using an LLM model
         A chunk is a DataChunk object that contains the text and an id
 
         args:
             - chunks : List[DataChunk] : a list of DataChunk objects containing the text to extract concepts from
+            - comprehensive : bool : if True, the concepts extracted will be more comprehensive by using an API-access LLM model. If False, the concepts will be extracted using a local LLM model
         """
         
         self.chunks = chunks
         self.concepts = []
+
+        self.build_comprehensive_graph = comprehensive
 
     def _parse_results(self,
                        results: List[str]) -> List[Dict[str, str]]:
@@ -40,7 +45,7 @@ class ConceptExtractor:
         for idx, result in enumerate(results):
 
             try:
-                result = result.replace("output:", "").replace("```python", "").replace("```", "").strip()
+                result = result.replace("output:", "").replace("```python", "").replace("```", "").replace("json", "").strip()
                 result = ast.literal_eval(result)
 
                 #add the text the result was generated from
@@ -53,7 +58,8 @@ class ConceptExtractor:
 
             except Exception as e:
                 error_count += 1
-                pass
+                print(f"Error parsing result for chunk {self.chunks[idx].id} : {e}")
+                print(f"Result : {result}")
 
         print(f"Error count : {error_count}")
 
@@ -72,7 +78,14 @@ class ConceptExtractor:
         system_prompt += f"Given a text, return a list of concepts that are related in the text and the relationships between them. The output should be a simple list of dictionaries, where each dictionary has keys 'node_1': <term/concept extracted from the input>, 'node_2' : <term/concept that is related to node_1>, 'edge': <explanation of how node_1 and node_2 are related in the input using one or two sentences>, 'weight' : <number from 1-5 to depict how strongly related node_1 and node_2 are>, 'relation': <relationship between node_1 and node_2>. Note that the output should be a valid list of dictionaries parse-able by ast.literal_eval()"
         system_prompt += f"\nIf there are no concepts to be extracted from input, return an empty list"
 
-        with CustomLLMBuilder(system_prompt=system_prompt) as llm:
+        GraphBuilder = CustomLLMBuilder
+
+        if self.build_comprehensive_graph:
+
+            GraphBuilder = AsyncLLMPipelineBuilder
+            print(f"Using the comprehensive graph builder for extracting concepts...")
+
+        with GraphBuilder(system_prompt=system_prompt) as llm:
 
             user_prompts = [f"extract concepts/terms in the list of dictionaries format described above from this text ```{chunk.text}``` \n\n output: "
                             for chunk in self.chunks]
@@ -122,6 +135,8 @@ class ConceptValidator:
         validator = StatementValidator(statements = statements)
         evaluated_statements = validator.validate()
 
+        invalid_statements = []
+
         for idx, concept in enumerate(self.concepts):
 
             concept["valid"] = False
@@ -133,5 +148,32 @@ class ConceptValidator:
 
             except:
                 pass
+
+            if not concept["valid"]:
+                invalid_statements.append(concept)
+
+        print(f"Starting secondary evaluation on {len(invalid_statements)} potentially invalid concepts...\n")
+
+        #validate edges for the concepts that are invalid
+        statements = [f"`{concept.get('relation', None)}` is a insight from the text `{concept.get('originating_text', None)}`"
+                        for concept in invalid_statements]
+        
+        validator = StatementValidator(statements = statements)
+        evaluated_statements = validator.validate()
+
+        for idx, concept in enumerate(invalid_statements):
+                
+            concept["valid"] = False
+            concept["explanation"] = None
+
+            try:
+                concept["valid"] = evaluated_statements[idx]["valid"]
+                concept["explanation"] = evaluated_statements[idx]["explanation"]
+
+            except:
+                pass
+        
+        #update the concepts list
+        self.concepts = [concept for concept in self.concepts if concept["valid"]] + invalid_statements
 
         return self.concepts

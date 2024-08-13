@@ -46,7 +46,7 @@ class StatementValidator:
 
             self.results[idx]["explanation"] = result
 
-            if "Yes" in result:
+            if "Yes" in result[:10]:
                 self.results[idx]["valid"] = True
 
         return self.results
